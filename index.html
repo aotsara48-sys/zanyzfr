@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="mg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zany Francklin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .btn-primary {
+            background-color: #059669; /* Emerald Green */
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #047857;
+        }
+        .card {
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .loading-animation {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #059669;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .source-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="container mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-gray-800">Zany Francklin</h1>
+            <p class="text-gray-500 mt-2">Mamokara lahatsoratra amin'ny alalan'ny faharanitan-tsaina sy fampahalalana avy amin'ny ZF.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 card p-6 rounded-xl h-fit sticky top-8">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Manomeza Toromarika</h2>
+                
+                <label for="prompt-input" class="block text-sm font-medium text-gray-700 mb-2">Ny Fanontanianao na Lohateninao:</label>
+                <textarea id="prompt-input" rows="4" 
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 transition duration-150"
+                    placeholder="Ohatra: Manomeza famintinana momba ny Tantaran'i Madagasikara."></textarea>
+
+                <label for="system-input" class="block text-sm font-medium text-gray-700 mt-4 mb-2">Toromarika ho an'ny ZF (Tsy voatery):</label>
+                <textarea id="system-input" rows="3" 
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 transition duration-150"
+                    placeholder="Ohatra: Manorata amin'ny maha-mpanoratra tantara manam-pahaizana."></textarea>
+                
+                <button id="generate-button" 
+                    class="w-full mt-6 flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white btn-primary shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                    onclick="generateText()">
+                    <span id="button-text">Mamorona Soratra</span>
+                    <div id="loading-spinner" class="loading-animation hidden ml-3"></div>
+                </button>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="card p-6 rounded-xl">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Ny Vokatrao</h2>
+                    <div id="output-area" class="min-h-[200px] p-4 bg-gray-50 border border-gray-200 rounded-lg whitespace-pre-wrap">
+                        <p class="text-gray-400 italic" id="placeholder-text">Asehoy eto ny soratra novokarin'ny ZF rehefa avy manindry ny bokotra "Mamorona Soratra" ianao.</p>
+                    </div>
+
+                    <div id="warning-message" class="mt-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-lg hidden" role="alert">
+                        <p id="warning-text"></p>
+                    </div>
+
+                    <div id="sources-area" class="mt-4 hidden">
+                        <h3 class="text-lg font-medium text-gray-700 mb-2">Loharanom-baovao avy amin'ny Google:</h3>
+                        <ul id="sources-list" class="space-y-1 text-sm text-gray-600">
+                            </ul>
+                    </div>
+
+                    <button id="copy-button" 
+                        class="mt-4 px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-gray-50 hover:bg-gray-100 transition duration-150"
+                        onclick="copyToClipboard()" disabled>
+                        Adikao ny Soratra
+                    </button>
+                    <span id="copy-status" class="ml-3 text-sm text-emerald-600 hidden">Voakaopy!</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Tsy ilaina intsony ny fanambarana ny apiKey na appId eto satria ny Netlify Function no miandraikitra azy.
+        
+        /**
+         * Mandefa antso (fetch request) mankany amin'ny Netlify Function.
+         */
+        async function fetchWithBackoff(url, options, maxRetries = 5) {
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && attempt < maxRetries - 1) {
+                        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                        console.warn(`429 Too Many Requests. Manao andrana indray ao anatin'ny ${delay / 1000}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        // Raha misy fahadisoana avy amin'ny Netlify Function, asehoy azy.
+                        throw new Error(`Tsy nahomby ny antso API: ${response.status} ${response.statusText}. Vokatra: ${errorBody}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (attempt === maxRetries - 1) {
+                        throw error;
+                    }
+                    const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                    console.error(`Fahadisoana: ${error.message}. Manao andrana indray ao anatin'ny ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * Mampiasa ny Netlify Function ho proxy hamoronana lahatsoratra.
+         */
+        async function generateText() {
+            const prompt = document.getElementById('prompt-input').value.trim();
+            const systemInstruction = document.getElementById('system-input').value.trim();
+            
+            const outputArea = document.getElementById('output-area');
+            const placeholderText = document.getElementById('placeholder-text');
+            const generateButton = document.getElementById('generate-button');
+            const buttonText = document.getElementById('button-text');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const sourcesArea = document.getElementById('sources-area');
+            const sourcesList = document.getElementById('sources-list');
+            const warningMessage = document.getElementById('warning-message');
+            const warningText = document.getElementById('warning-text');
+            const copyButton = document.getElementById('copy-button');
+            const copyStatus = document.getElementById('copy-status');
+
+            // Hamafiso ny fampidirana
+            if (!prompt) {
+                warningText.textContent = "Ampidiro azafady ny fanontanianao na ny lohateninao alohan'ny hanombohana.";
+                warningMessage.classList.remove('hidden');
+                outputArea.innerHTML = '';
+                placeholderText.classList.remove('hidden');
+                return;
+            }
+            warningMessage.classList.add('hidden');
+            copyStatus.classList.add('hidden');
+
+            // Amboary ny UI ho an'ny Loading
+            outputArea.innerHTML = `<div class="flex items-center text-gray-500">
+                                        <div class="loading-animation mr-3"></div>
+                                        <span>Mamokatra soratra... Azafady miandry.</span>
+                                    </div>`;
+            placeholderText.classList.add('hidden');
+            generateButton.disabled = true;
+            buttonText.textContent = "Miandry...";
+            loadingSpinner.classList.remove('hidden');
+            sourcesArea.classList.add('hidden');
+            copyButton.disabled = true;
+
+            // 🛠️ FANAVANA LEHIBE 1: Ampiasaina ny Adiresin'ny Netlify Function
+            const apiUrl = "/.netlify/functions/gemini-proxy";
+
+            // 🛠️ FANAVANA LEHIBE 2: Ny payload dia mandefa ny angona ilaina fotsiny
+            const payload = {
+                prompt: prompt,
+                systemInstruction: systemInstruction,
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Ny valiny avy amin'ny Netlify Function dia mitovy amin'ny an'ny Gemini API
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                let generatedText = "Tsy nahita valiny mazava i ZF";
+                let sources = [];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    generatedText = candidate.content.parts[0].text;
+                    
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title); // Hamarana raha marina ny loharano
+                    }
+                }
+
+                // Asehoy ny vokatra
+                outputArea.textContent = generatedText;
+                copyButton.disabled = false;
+
+                // Asehoy ny loharanom-baovao
+                sourcesList.innerHTML = '';
+                if (sources.length > 0) {
+                    sources.forEach(source => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="text-emerald-600 source-link">${source.title}</a>`;
+                        sourcesList.appendChild(li);
+                    });
+                    sourcesArea.classList.remove('hidden');
+                } else {
+                    sourcesArea.classList.add('hidden');
+                }
+
+            } catch (error) {
+                console.error("Fahadisoana nandritra ny famokarana lahatsoratra:", error);
+                warningText.textContent = `Tsy nahomby ny fangatahana (request). Mety misy olana amin'ny Netlify Function: ${error.message}`;
+                warningMessage.classList.remove('hidden');
+                outputArea.textContent = "Misy fahadisoana. Jereo azafady ny console raha mila antsipiriany bebe kokoa.";
+                copyButton.disabled = true;
+                sourcesArea.classList.add('hidden');
+            } finally {
+                // Amboary ny UI rehefa vita
+                generateButton.disabled = false;
+                buttonText.textContent = "Mamorona Soratra";
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Maka ny lahatsoratra novokarina ary makaopy azy ao amin'ny clipboard.
+         */
+        function copyToClipboard() {
+            const outputArea = document.getElementById('output-area');
+            const copyStatus = document.getElementById('copy-status');
+            const textToCopy = outputArea.textContent;
+
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                copyStatus.classList.remove('hidden');
+                setTimeout(() => copyStatus.classList.add('hidden'), 2000);
+            } catch (err) {
+                console.error('Tsy nahomby ny kopia:', err);
+                alert("Tsy afaka nakaopy ny lahatsoratra. Andramo adikao amin'ny tanana azafady.");
+            }
+        }
+    </script>
+</body>
+</html>

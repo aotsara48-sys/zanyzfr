@@ -1,0 +1,10 @@
+[build]
+  # Ny lahatahiry misy ny 'index.html'. "." dia midika hoe ny faka (root).
+  publish = "."
+  
+  # Ny lahatahiry misy ny Netlify Functions.
+  functions = "netlify/functions"
+
+[functions]
+  # Mampiasa esbuild ho an'ny famolavolana function haingana kokoa
+  node_bundler = "esbuild"

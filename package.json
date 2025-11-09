@@ -1,0 +1,8 @@
+{
+  "name": "netlify-gemini-proxy",
+  "version": "1.0.0",
+  "description": "Proxy function ho an'ny Gemini API",
+  "dependencies": {
+    "@google/generative-ai": "^0.14.1"
+  }
+}
