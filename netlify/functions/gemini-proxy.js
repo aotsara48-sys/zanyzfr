@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
     // Fikirakirana ny modely (Ampiasao ny 1.5 Flash ho an'ny grounding)
     // Ny 'gemini-1.5-flash-latest' dia mahay mamoaka loharanom-baovao (grounding)
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-2.5-flash",
       // Ampio ny systemInstruction raha misy
       ...(systemInstruction && { systemInstruction: systemInstruction }),
     });
@@ -73,3 +73,4 @@ exports.handler = async (event, context) => {
   }
 
 };
+
